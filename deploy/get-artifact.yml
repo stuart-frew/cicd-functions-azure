@@ -1,0 +1,45 @@
+parameters:
+- name: version
+  default: ""
+- name: packageName
+  default: ""
+
+steps:
+- task: Bash@3
+  displayName: Diagnostics1
+  inputs:
+    targetType: inLine
+    script: echo "[${{parameters.version}}|${{parameters.packageName}}]"
+
+- task: DownloadPackage@1
+  inputs:
+    packageType: maven
+    feed: Mulesoft Migration/IntegrationTeamArtifacts
+    definition: nz.co.kiwirail.experiment:${{parameters.packageName}}
+    version: ${{parameters.version}}
+    downloadPath: $(Build.ArtifactStagingDirectory) 
+    files: '*.zip'
+
+- task: Bash@3
+  displayName: Get file to extract
+  inputs:
+    workingDirectory: $(Build.ArtifactStagingDirectory) 
+    targetType: "inLine"
+    script: |
+      ZIP_FILE=`ls -1 *zip | tail -n 1`
+      echo "##vso[task.setvariable variable=ZIP_FILE]$ZIP_FILE"
+
+- task: Bash@3
+  displayName: Diagnostics
+  inputs:
+    workingDirectory: $(Build.ArtifactStagingDirectory) 
+    targetType: "inLine"
+    script: pwd && echo --- && ls * && echo "[$ZIP_FILE]"
+
+- task: ExtractFiles@1
+  inputs:
+    archiveFilePatterns: $(Build.ArtifactStagingDirectory)/$(ZIP_FILE)
+    destinationFolder: $(Build.ArtifactStagingDirectory)
+    cleanDestinationFolder: false
+
+

@@ -1,0 +1,7 @@
+
+steps:
+- task: Bash@3
+  displayName: Functional testing
+  inputs:
+    targetType: "inLine"
+    script: echo Functional testing.......

@@ -1,0 +1,51 @@
+parameters:
+  - name: gitHubServiceConnection
+    default: ""
+  - name: version
+    default: ""
+  - name: packageName
+    default: ""
+  - name: packagePrefix
+    default: nz.co.kiwirail.integration
+  - name: artifactRepository
+    default: IntegrationTeamArtifacts
+
+steps:
+- task: GitHubRelease@0
+  # Only tag release when currently on the main branch.
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  displayName: 'Publish Github release'
+  inputs:
+    gitHubConnection: ${{parameters.gitHubServiceConnection}}
+    action: Create
+    target: '$(Build.SourceVersion)'
+    tagSource: "manual"
+    tag: ${{parameters.version}}
+    tagPattern: "\\d+\\.\\d+\\.\\d+"
+    title: "$(Build.SourceVersionMessage)"
+    addChangeLog: true
+
+- task: ArchiveFiles@2
+  displayName: "Archive Artifact Files"
+  inputs:
+    rootFolderOrFile: $(Build.ArtifactStagingDirectory)/packaging/
+    includeRootFolder: true
+    archiveFile: "$(Build.ArtifactStagingDirectory)/artifact/${{parameters.packageName}}.zip"
+
+- task: MavenAuthenticate@0
+  displayName: Artefact repository authentication
+  inputs:
+    artifactsFeeds: IntegrationTeamArtifacts
+    
+- task: Bash@3
+  displayName: Publish artifact to maven repository
+  inputs:
+    targetType: "inLine"
+    script: 
+      mvn deploy:deploy-file 
+      -Dfile=$(Build.ArtifactStagingDirectory)/artifact/${{parameters.packageName}}.zip 
+      -Durl=https://pkgs.dev.azure.com/KiwiRailDevOPS/a2205516-1f57-4505-a04a-5405ce481da0/_packaging/IntegrationTeamArtifacts/maven/v1 
+      -DartifactId=${{parameters.packageName}} 
+      -DgroupId=nz.co.kiwirail.experiment 
+      -Dversion=${{parameters.version}}
+      -DrepositoryId=IntegrationTeamArtifacts

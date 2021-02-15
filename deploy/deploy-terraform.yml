@@ -1,0 +1,70 @@
+parameters:
+- name: terraformAzureServiceConnection
+  type: string
+  default: ""
+- name: terraformingLocation
+  type: string
+  default: ""
+- name: appName
+  type: string
+  default: ""
+- name: resourceGroup
+  type: string
+  default: ""
+
+steps:
+- task: AzureKeyVault@1
+  displayName: 'Azure Key Vault: application-keyvault'
+  inputs:
+    azureSubscription: $(azureServiceConnection)
+    KeyVaultName: $(resourceGroup)
+    SecretsFilter: "*"
+
+- task: Bash@3
+  displayName: "Diagnostics"
+  inputs:
+    targetType: "inLine"
+    script: echo "[${{parameters.appName}}][${{parameters.resourceGroup}}]"
+    
+- task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+  displayName: 'Install Terraform'
+  inputs:
+    terraformVersion: 0.13.5
+
+- task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskV1@0
+  displayName: 'Terraform init'
+  inputs:
+    provider: "azurerm"
+    workingDirectory: '$(Build.ArtifactStagingDirectory)${{parameters.terraformingLocation}}'
+    backendServiceArm: ${{parameters.terraformAzureServiceConnection}}
+    backendAzureRmResourceGroupName: $(backendResourceGroup)
+    backendAzureRmStorageAccountName: $(backendStorageAccount)
+    backendAzureRmContainerName: $(backendContainerName)
+    backendAzureRmKey: "$(Build.Repository.Name).tfstate"
+
+- task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskV1@0
+  displayName: 'Terraform : plan'
+  inputs:
+    provider: "azurerm"
+    command: plan
+    workingDirectory: '$(Build.ArtifactStagingDirectory)${{parameters.terraformingLocation}}'
+    environmentServiceNameAzureRM: ${{parameters.terraformAzureServiceConnection}}
+    commandOptions: '-input=false -out terraform.plan'
+  env:
+    TF_VAR_app_name: ${{parameters.appName}}
+    TF_VAR_resource_group: ${{parameters.resourceGroup}}
+    TF_VAR_subscription_id: $(subscription-id)
+    TF_VAR_client_id: $(client-id)
+    TF_VAR_tenant_id: $(tenant-id)
+    TF_VAR_client_secret: $(client-secret)
+
+- task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskV1@0
+  displayName: 'Terraform : apply'
+  inputs:
+    provider: "azurerm"
+    command: apply
+    workingDirectory: $(Build.ArtifactStagingDirectory)${{parameters.terraformingLocation}}
+    environmentServiceNameAzureRM: ${{parameters.terraformAzureServiceConnection}}
+    commandOptions: terraform.plan
+
+

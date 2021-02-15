@@ -1,0 +1,47 @@
+parameters:
+- name: azureServiceConnection
+  default: ""
+- name: terraformAzureServiceConnection
+  default: ""
+- name: keyVaultName
+  default: ""
+
+
+steps:
+- task: AzureKeyVault@1
+  displayName: 'Azure Key Vault: application-keyvault'
+  inputs:
+    azureSubscription: ${{parameters.azureServiceConnection}}
+    KeyVaultName: ${{parameters.keyVaultName}}
+    SecretsFilter: "*"
+
+- task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+  displayName: 'Install Terraform'
+  inputs:
+    terraformVersion: 0.13.5
+
+- task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskV1@0
+  displayName: 'Terraform init'
+  inputs:
+    provider: "azurerm"
+    workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+    backendServiceArm: ${{parameters.terraformAzureServiceConnection}}
+    backendAzureRmResourceGroupName: $(backendResourceGroup)
+    backendAzureRmStorageAccountName: $(backendStorageAccount)
+    backendAzureRmContainerName: $(backendContainerName)
+    backendAzureRmKey: "$(Build.Repository.Name).tfstate"
+
+- task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskV1@0
+  displayName: 'Terraform : validate'
+  inputs:
+    provider: "azurerm"
+    command: validate
+    workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+    environmentServiceNameAzureRM: ${{parameters.terraformAzureServiceConnection}}
+
+- task: CopyFiles@2
+  displayName: Copy Terraform files for packaging
+  inputs:
+    sourceFolder: '$(System.DefaultWorkingDirectory)/terraform'
+    contents: '*.tf'
+    targetFolder: '$(Build.ArtifactStagingDirectory)/packaging/terraform'

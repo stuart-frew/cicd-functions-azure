@@ -1,0 +1,7 @@
+
+steps:
+- task: Bash@3
+  displayName: Smoke testing
+  inputs:
+    targetType: "inLine"
+    script: echo Smoke testing.......

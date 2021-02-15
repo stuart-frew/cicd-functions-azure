@@ -1,0 +1,20 @@
+steps:
+- task: Bash@3
+  displayName: "Format package name"
+  inputs:
+    targetType: "inLine"
+    script: |
+      NAME=`echo -n $(Build.Repository.Name) | tr / . |  tr [:upper:] [:lower:]`
+      echo $NAME
+      echo "##vso[task.setvariable variable=packageName]$NAME"
+
+- task: Bash@3
+  displayName: "Format app name"
+  inputs:
+    targetType: "inLine"
+    script: |
+      NAME=`echo -n $(Build.Repository.Name) | tr [:upper:] [:lower:] | tr -c [:alnum:] - `
+      echo $NAME
+      echo "##vso[task.setvariable variable=appName]$NAME"
+
+
